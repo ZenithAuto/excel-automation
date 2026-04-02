@@ -1,0 +1,15 @@
+import pandas as pd
+
+# Lee un archivo Excel (cámbialo por tu archivo de prueba)
+archivo_entrada = "ventas.xlsx"
+df = pd.read_excel(archivo_entrada)
+
+# Procesa: suma de ventas por mes (ejemplo)
+df['Fecha'] = pd.to_datetime(df['Fecha'])
+df['Mes'] = df['Fecha'].dt.month
+resumen = df.groupby('Mes')['Venta'].sum().reset_index()
+
+# Guarda resultado
+resumen.to_excel("reporte_mensual.xlsx", index=False)
+
+print("Reporte generado: reporte_mensual.xlsx")

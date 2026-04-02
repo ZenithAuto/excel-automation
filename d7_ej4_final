@@ -1,0 +1,22 @@
+palabra = input().lower()
+
+vocales = "aeiou"
+
+cant_vocales = 0
+cant_consonantes = 0
+
+for letra in palabra:
+    if letra.isalpha():
+        if letra in vocales:
+            cant_vocales += 1
+        else:
+            cant_consonantes += 1
+
+if palabra == palabra[::-1]:
+    es_palindromo = "SI"
+else:
+    es_palindromo = "NO"
+
+print(cant_vocales)
+print(cant_consonantes)
+print(es_palindromo)

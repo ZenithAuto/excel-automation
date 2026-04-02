@@ -1,0 +1,10 @@
+frase = input()
+palabras = frase.split()
+
+mas_larga = palabras[0]
+
+for palabra in palabras:
+    if len(palabra) > len(mas_larga):
+        mas_larga = palabra
+
+print(mas_larga)

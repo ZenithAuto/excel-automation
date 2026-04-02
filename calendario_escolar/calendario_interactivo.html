@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calendario Escolar</title>
+
+<style>
+
+body{
+font-family:Arial;
+background:#111;
+color:white;
+text-align:center;
+}
+
+table{
+border-collapse:collapse;
+margin:20px auto;
+}
+
+td,th{
+border:1px solid #444;
+width:90px;
+height:70px;
+text-align:center;
+font-size:16px;
+}
+
+.verde{
+background:#2ecc71;
+}
+
+.rojo{
+background:#e74c3c;
+}
+
+.naranja{
+background:#f39c12;
+}
+
+.mes{
+font-size:26px;
+margin-top:40px;
+}
+
+input{
+padding:10px;
+font-size:16px;
+}
+
+button{
+padding:10px;
+font-size:16px;
+margin:5px;
+cursor:pointer;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Calendario Escolar</h1>
+
+<button onclick="cambiarAño(-1)">Año anterior</button>
+<span id="tituloAño"></span>
+<button onclick="cambiarAño(1)">Año siguiente</button>
+
+<br><br>
+
+<input id="buscar" placeholder="2 noviembre 2026">
+<button onclick="buscarFecha()">Buscar fecha</button>
+
+<p id="resultado"></p>
+
+<div id="calendario"></div>
+
+<script>
+
+let añoActual = 2026
+
+const diasSinClase = [
+"2026-01-01","2026-02-02","2026-03-16","2026-05-01","2026-09-16","2026-11-16","2026-12-25","2027-01-01","2027-02-01","2027-03-15","2027-05-01","2027-09-16","2027-11-15","2027-12-25","2028-01-01","2028-02-07","2028-03-20","2028-05-01","2028-09-16","2028-11-20","2028-12-25","2029-01-01","2029-02-05","2029-03-19","2029-05-01","2029-09-16","2029-11-19","2029-12-25","2030-01-01","2030-02-04","2030-03-18","2030-05-01","2030-09-16","2030-11-18","2030-12-25",
+
+]
+
+const mesesTexto = {
+enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,
+julio:7,agosto:8,septiembre:9,octubre:10,noviembre:11,diciembre:12
+}
+
+function generarCalendario(año){
+
+document.getElementById("tituloAño").innerText = año
+
+let meses = [
+"Enero","Febrero","Marzo","Abril","Mayo","Junio",
+"Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"
+]
+
+let dias = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"]
+
+let contenido=""
+
+for(let m=0;m<12;m++){
+
+contenido += "<div class='mes'>"+meses[m]+" "+año+"</div>"
+contenido += "<table><tr>"
+
+for(let d of dias){
+contenido += "<th>"+d+"</th>"
+}
+
+contenido += "</tr>"
+
+let fecha = new Date(año,m,1)
+let primerDia = (fecha.getDay()+6)%7
+let diasMes = new Date(año,m+1,0).getDate()
+
+let dia=1
+
+for(let i=0;i<6;i++){
+
+contenido+="<tr>"
+
+for(let j=0;j<7;j++){
+
+if(i===0 && j<primerDia){
+contenido+="<td></td>"
+}
+
+else if(dia>diasMes){
+contenido+="<td></td>"
+}
+
+else{
+
+let mesNum = String(m+1).padStart(2,"0")
+let diaNum = String(dia).padStart(2,"0")
+let fechaTexto = año+"-"+mesNum+"-"+diaNum
+
+let clase="verde"
+
+if(diasSinClase.includes(fechaTexto)){
+clase="rojo"
+}
+else{
+
+let diaSemana = new Date(año,m,dia).getDay()
+
+if(diaSemana===0 || diaSemana===6){
+clase="naranja"
+}
+
+}
+
+contenido += "<td class='"+clase+"'>"+dia+"</td>"
+
+dia++
+
+}
+
+}
+
+contenido+="</tr>"
+
+if(dia>diasMes){
+break
+}
+
+}
+
+contenido+="</table>"
+
+}
+
+document.getElementById("calendario").innerHTML = contenido
+
+}
+
+function cambiarAño(n){
+
+añoActual = añoActual + n
+generarCalendario(añoActual)
+
+}
+
+function buscarFecha(){
+
+let texto = document.getElementById("buscar").value.toLowerCase()
+
+let partes = texto.split(" ")
+
+if(partes.length < 3){
+
+document.getElementById("resultado").innerText = "Formato correcto: 2 noviembre 2026"
+return
+
+}
+
+let dia = partes[0]
+let mes = mesesTexto[partes[1]]
+let año = partes[2]
+
+if(!mes){
+
+document.getElementById("resultado").innerText = "Mes no reconocido"
+return
+
+}
+
+let mesNum = String(mes).padStart(2,"0")
+let diaNum = String(dia).padStart(2,"0")
+
+let fecha = año+"-"+mesNum+"-"+diaNum
+
+if(diasSinClase.includes(fecha)){
+
+document.getElementById("resultado").innerText = "No hay clases"
+
+}
+
+else{
+
+let d = new Date(año,mes-1,dia).getDay()
+
+if(d===0 || d===6){
+
+document.getElementById("resultado").innerText = "Fin de semana"
+
+}
+
+else{
+
+document.getElementById("resultado").innerText = "Sí hay clases"
+
+}
+
+}
+
+}
+
+generarCalendario(añoActual)
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,18 @@
+n = int(input())
+numeros = list(map(int, input().split()))
+
+frecuencia = {}
+
+for num in numeros:
+    if num in frecuencia:
+        frecuencia[num] += 1
+    else:
+        frecuencia[num] = 1
+
+contador = 0
+
+for valor in frecuencia.values():
+    if valor == 1:
+        contador += 1
+
+print(contador)

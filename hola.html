@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAIO - Agenda Ultra Pro EPO 89 🚀</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        :root { --primary: #4A90E2; --bg-dark: #0f172a; --card-dark: #1e293b; }
+        .dark { background-color: var(--bg-dark); color: white; }
+        .dark .card { background-color: var(--card-dark); border-color: #334155; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background-color: #e2e8f0; }
+        .dark .calendar-grid { background-color: #334155; }
+        .day-cell { min-height: 100px; padding: 6px; background-color: white; transition: all 0.2s; position: relative; border: 0.5px solid #f1f5f9; }
+        .dark .day-cell { background-color: var(--card-dark); border-color: #334155; }
+        .today { border: 2px solid var(--primary) !important; background-color: #eff6ff !important; }
+        .dark .today { background-color: #1e3a8a !important; }
+        .sep-holiday { background-color: #fee2e2 !important; color: #991b1b; }
+        .dark .sep-holiday { background-color: #7f1d1d !important; color: #fecaca; }
+        .vacation { background-color: #f0fdf4 !important; color: #166534; }
+        .dark .vacation { background-color: #064e3b !important; color: #d1fae5; }
+        .school-day::after { content: '📚'; position: absolute; top: 4px; right: 4px; font-size: 10px; opacity: 0.3; }
+        .editable-cell:focus { background: #e0f2fe; outline: none; border: 2px solid #3b82f6; border-radius: 4px; }
+        .dark .editable-cell:focus { background: #0c4a6e; }
+        .recreo-row { background-color: #fefce8 !important; font-weight: bold; color: #854d0e; }
+        .dark .recreo-row { background-color: #422006 !important; color: #fef08a; }
+
+        #chat-window { bottom: 80px; right: 20px; width: 320px; transition: all 0.3s ease; transform: translateY(20px); opacity: 0; pointer-events: none; }
+        #chat-window.active { transform: translateY(0); opacity: 1; pointer-events: auto; }
+    </style>
+</head>
+<body class="transition-colors duration-300 font-sans">
+
+<div id="app" class="flex h-screen overflow-hidden">
+    <aside class="w-64 card border-r p-4 flex flex-col hidden md:flex shadow-lg bg-white dark:bg-slate-800">
+        <div class="flex items-center gap-2 mb-8">
+            <div class="p-2 bg-blue-600 rounded-lg text-white shadow-lg"><i data-lucide="sparkles"></i></div>
+            <h1 class="text-xl font-black tracking-tighter text-blue-600 dark:text-blue-400">SAIO PRO</h1>
+        </div>
+        <nav class="space-y-2 flex-1">
+            <button onclick="setView('calendar')" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-700 transition font-bold text-sm"><i data-lucide="calendar"></i> Mi Agenda</button>
+            <button onclick="setView('schedule')" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-700 transition font-bold text-sm"><i data-lucide="clock"></i> Mi Horario</button>
+            <button onclick="setView('dashboard')" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-700 transition font-bold text-sm"><i data-lucide="bar-chart-3"></i> Estadísticas</button>
+        </nav>
+        <div class="mt-auto space-y-4">
+            <div id="liveClock" class="text-xs font-mono text-center p-2 bg-gray-100 dark:bg-slate-900 rounded-lg opacity-80">00:00:00</div>
+            <button onclick="toggleDarkMode()" class="w-full flex items-center justify-center gap-2 p-2 rounded-xl border dark:border-slate-600 hover:bg-gray-50 transition">
+                <i data-lucide="moon" class="w-4 h-4" id="themeIcon"></i> <span class="text-xs font-bold">Modo Oscuro</span>
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50 dark:bg-slate-900/50">
+        <header class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
+            <div>
+                <h2 id="currentViewTitle" class="text-3xl font-black text-gray-800 dark:text-white">Calendario Escolar 🏫</h2>
+                <p id="dateSubtitle" class="text-blue-500 font-bold text-sm uppercase tracking-widest">Cargando...</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <div class="relative flex-1 md:w-80">
+                    <input type="text" id="dateSearch" placeholder="Ej: 02 enero 2026 🔍" 
+                           class="w-full pl-10 pr-4 py-2 border-2 rounded-2xl dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:border-blue-500 transition shadow-sm text-sm">
+                    <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"></i>
+                    <button onclick="handleSearch()" class="absolute right-2 top-1.5 bg-blue-100 text-blue-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-blue-200">Ir</button>
+                </div>
+                <button onclick="openModal()" class="bg-blue-600 text-white px-6 py-2 rounded-2xl flex items-center gap-2 hover:bg-blue-700 shadow-blue-500/20 shadow-lg font-bold transition">
+                    <i data-lucide="plus-circle" class="w-5 h-5"></i> Añadir
+                </button>
+            </div>
+        </header>
+
+        <div id="calendarView" class="space-y-4">
+            <div class="flex bg-white dark:bg-slate-800 p-1 w-fit rounded-xl border shadow-sm mb-2">
+                <button onclick="changeMonth(-1)" class="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg">◀️</button>
+                <button onclick="changeMonth(1)" class="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg">▶️</button>
+            </div>
+            <div id="calendarGrid" class="calendar-grid rounded-3xl border-2 dark:border-slate-700 overflow-hidden shadow-2xl"></div>
+        </div>
+
+        <div id="scheduleView" class="hidden">
+            <div class="card border-2 rounded-3xl bg-white dark:bg-slate-800 overflow-hidden shadow-2xl overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-blue-600 text-white border-b-2 border-blue-700 text-center">
+                            <th class="p-4 border-r border-blue-700">HORA</th>
+                            <th class="p-4">LUN</th><th class="p-4">MAR</th><th class="p-4">MIÉ</th><th class="p-4">JUE</th><th class="p-4">VIE</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scheduleBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="dashboardView" class="hidden space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="card p-8 border-2 rounded-3xl bg-white dark:bg-slate-800 shadow-xl text-center">
+                    <h3 class="text-gray-400 text-xs font-black mb-4 uppercase">Tareas</h3>
+                    <p id="statTasks" class="text-6xl font-black text-blue-600">0</p>
+                </div>
+                <div class="card p-8 border-2 rounded-3xl bg-white dark:bg-slate-800 shadow-xl text-center">
+                    <h3 class="text-gray-400 text-xs font-black mb-4 uppercase">Clases/Mes</h3>
+                    <p id="statSchoolDays" class="text-6xl font-black text-green-500">0</p>
+                </div>
+                <div class="card p-8 border-2 rounded-3xl bg-white dark:bg-slate-800 shadow-xl text-center">
+                    <h3 class="text-gray-400 text-xs font-black mb-4 uppercase">Próximo</h3>
+                    <p id="nextExam" class="text-sm font-black text-red-500 mt-2">Ninguno</p>
+                </div>
+            </div>
+            <div class="card p-6 border-2 rounded-3xl bg-white dark:bg-slate-800 shadow-xl h-80">
+                <canvas id="productivityChart"></canvas>
+            </div>
+        </div>
+    </main>
+</div>
+
+<button onclick="toggleChat()" class="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition z-50">
+    <i data-lucide="bot"></i>
+</button>
+
+<div id="chat-window" class="fixed card border-2 bg-white dark:bg-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden z-50 h-96">
+    <div class="bg-blue-600 p-4 text-white font-bold flex justify-between items-center text-sm">
+        <span>🤖 Asistente SAIO</span>
+        <button onclick="toggleChat()"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+    <div id="chat-messages" class="flex-1 p-4 overflow-y-auto text-xs space-y-3">
+        <div class="bg-blue-50 dark:bg-slate-700 p-3 rounded-2xl rounded-tl-none text-gray-800 dark:text-white">
+            ¡Hola 'Zenith_Admin'! Pregúntame sobre tus clases o pídeme: "Busca en internet [fecha]".
+        </div>
+    </div>
+    <div class="p-3 border-t dark:border-slate-700">
+        <input type="text" id="chat-input" placeholder="Pregunta algo sobre el calendario..." class="w-full p-2 text-xs bg-gray-100 dark:bg-slate-700 rounded-xl outline-none border focus:border-blue-500 text-gray-800 dark:text-white">
+    </div>
+</div>
+
+<div id="modal" class="fixed inset-0 bg-slate-900/80 hidden flex items-center justify-center z-[60] backdrop-blur-md p-4">
+    <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border-2 border-blue-500/20">
+        <h3 class="text-2xl font-black mb-6 italic text-gray-800 dark:text-white">Añadir Actividad ✨</h3>
+        <form id="eventForm" class="space-y-4">
+            <input type="text" id="eventTitle" placeholder="¿Qué harás?" class="w-full p-4 bg-gray-50 dark:bg-slate-700 border-2 rounded-2xl outline-none focus:border-blue-500 transition text-gray-800 dark:text-white" required>
+            <div class="grid grid-cols-2 gap-4">
+                <input type="date" id="eventDate" class="w-full p-4 bg-gray-50 dark:bg-slate-700 border-2 rounded-2xl outline-none text-gray-800 dark:text-white" required>
+                <select id="eventType" class="w-full p-4 bg-gray-50 dark:bg-slate-700 border-2 rounded-2xl outline-none font-bold text-gray-800 dark:text-white">
+                    <option value="task">📝 Tarea</option>
+                    <option value="exam">🔥 Examen</option>
+                    <option value="important">🚨 Importante</option>
+                    <option value="activity">🏀 Actividad</option>
+                </select>
+            </div>
+            <div class="flex justify-end gap-3 pt-4">
+                <button type="button" onclick="closeModal()" class="text-gray-400 font-bold px-4 hover:text-gray-600">Cerrar</button>
+                <button type="submit" class="bg-blue-600 text-white px-8 py-3 rounded-2xl font-black shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition">Guardar 🚀</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let currentDate = new Date();
+    let events = JSON.parse(localStorage.getItem('saio_events')) || [];
+    let scheduleData = JSON.parse(localStorage.getItem('saio_schedule')) || {};
+    let isDarkMode = localStorage.getItem('saio_dark') === 'true';
+    const monthNames = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+    // --- LÓGICA DE LA IA ---
+    function processAIQuery(query) {
+        const q = query.toLowerCase();
+        let response = "No entiendo esa pregunta, intenta algo como: '¿Qué hace esta app?' o 'Busca en internet 16 de septiembre'.";
+
+        if (q.includes("internet") || q.includes("búscalo") || q.includes("investiga")) {
+            const searchTerms = q.replace("internet", "").replace("búscalo en", "").replace("investiga", "").trim();
+            window.open(`https://www.google.com/search?q=${encodeURIComponent(searchTerms)}`, '_blank');
+            return `¡Claro! He abierto una búsqueda en Google sobre: "${searchTerms}" 🌐`;
+        }
+
+        if (q.includes("qué hace") || q.includes("para qué sirve") || q.includes("ayuda")) {
+            return "Este es tu sistema SAIO PRO. Puedes guardar tareas, ver tu horario de la EPO 89 y checar estadísticas de productividad. ¡Todo se guarda automáticamente!";
+        }
+
+        if (q.includes("fecha") || q.match(/\d+/)) {
+            const foundEvents = events.filter(e => q.includes(e.title.toLowerCase()) || q.includes(e.date));
+            if (foundEvents.length > 0) {
+                return `Encontré esto en tu calendario: ${foundEvents.map(e => e.title + " el " + e.date).join(", ")}.`;
+            } else {
+                return "No tienes eventos anotados para esa fecha, pero puedes pedírmelo así: 'Busca en internet qué pasó el [fecha]'.";
+            }
+        }
+        return response;
+    }
+
+    document.getElementById('chat-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            const val = this.value; if(!val) return;
+            addChatMessage('user', val);
+            this.value = '';
+            setTimeout(() => {
+                const reply = processAIQuery(val);
+                addChatMessage('bot', reply);
+            }, 600);
+        }
+    });
+
+    function addChatMessage(sender, text) {
+        const box = document.getElementById('chat-messages');
+        const d = document.createElement('div');
+        d.className = sender === 'user' ? 'bg-blue-600 text-white p-2 rounded-xl self-end ml-auto max-w-[80%]' : 'bg-gray-100 dark:bg-slate-700 p-2 rounded-xl mr-auto max-w-[80%] text-gray-800 dark:text-white';
+        d.innerText = text;
+        box.appendChild(d);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function toggleChat() { document.getElementById('chat-window').classList.toggle('active'); }
+
+    // --- FUNCIONES DEL CALENDARIO (IGUALES) ---
+    function handleSearch() {
+        const query = document.getElementById('dateSearch').value.toLowerCase().trim();
+        const parts = query.split(' ');
+        if (parts.length === 3) {
+            const d = parseInt(parts[0], 10);
+            const m = monthNames.indexOf(parts[1]);
+            const y = parseInt(parts[2], 10);
+            if (!isNaN(d) && m !== -1 && !isNaN(y)) { currentDate = new Date(y, m, d); renderCalendar(); }
+        }
+    }
+
+    function getHolidays(y) {
+        return { [`${y}-01-01`]: "🥳 Año Nuevo", [`${y}-05-01`]: "🛠️ Día Trabajo", [`${y}-09-16`]: "🔔 Independencia", [`${y}-11-20`]: "🐎 Revolución", [`${y}-12-25`]: "🎄 Navidad" };
+    }
+
+    function isVacation(dateStr) {
+        const d = new Date(dateStr); const m = d.getMonth(); const day = d.getDate();
+        if ((m === 11 && day >= 20) || (m === 0 && day <= 8)) return "🎿 Vacaciones";
+        return (m === 6 || m === 7) ? "🏖️ Verano" : null;
+    }
+
+    function renderCalendar() {
+        const grid = document.getElementById('calendarGrid'); grid.innerHTML = '';
+        const y = currentDate.getFullYear(); const m = currentDate.getMonth();
+        const holidays = getHolidays(y);
+        document.getElementById('dateSubtitle').innerText = `${monthNames[m]} ${y}`;
+        ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].forEach(d => {
+            grid.innerHTML += `<div class="bg-gray-50 dark:bg-slate-700/50 p-2 text-center text-[10px] font-black text-blue-400 uppercase">${d}</div>`;
+        });
+        const first = new Date(y, m, 1).getDay(); const total = new Date(y, m + 1, 0).getDate();
+        for (let i = 0; i < first; i++) grid.innerHTML += `<div class="day-cell bg-slate-50 dark:bg-slate-900/10"></div>`;
+        let count = 0;
+        for (let d = 1; d <= total; d++) {
+            const ds = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const holiday = holidays[ds]; const vac = isVacation(ds);
+            const isToday = new Date().toISOString().split('T')[0] === ds;
+            const dw = new Date(y, m, d).getDay(); const isS = dw > 0 && dw < 6 && !holiday && !vac;
+            if (isS) count++;
+            const cell = document.createElement('div');
+            cell.className = `day-cell ${isToday ? 'today' : ''} ${holiday ? 'sep-holiday' : ''} ${vac ? 'vacation' : ''} ${isS ? 'school-day' : ''}`;
+            cell.innerHTML = `<span class="text-xs font-black">${d}</span>`;
+            if (holiday) cell.innerHTML += `<div class="text-[7px] font-black mt-1 uppercase">${holiday}</div>`;
+            events.filter(e => e.date === ds).forEach(e => {
+                const b = document.createElement('div');
+                b.className = `text-[8px] p-1 mt-1 rounded text-white font-bold truncate ${getTypeColor(e.type)}`;
+                b.innerText = e.title; cell.appendChild(b);
+            });
+            grid.appendChild(cell);
+        }
+        document.getElementById('statSchoolDays').innerText = count; updateStats();
+    }
+
+    function getTypeColor(t) {
+        const c = { task: 'bg-blue-500', exam: 'bg-red-500', important: 'bg-orange-500', activity: 'bg-green-500' };
+        return c[t] || 'bg-gray-500';
+    }
+
+    function renderSchedule() {
+        const body = document.getElementById('scheduleBody'); body.innerHTML = '';
+        const slots = ["7:00 - 7:50", "7:50 - 8:40", "8:40 - 9:30", "9:30 - 10:00", "10:00 - 10:50", "10:50 - 11:40", "11:40 - 12:30", "12:30 - 1:20"];
+        slots.forEach(time => {
+            const row = document.createElement('tr'); const isR = time === "9:30 - 10:00";
+            row.className = `border-b dark:border-slate-700 text-center ${isR ? 'recreo-row' : ''}`;
+            row.innerHTML = `<td class="p-4 bg-gray-50 dark:bg-slate-900/50 font-black border-r dark:border-slate-700 text-[10px]">${time}</td>`;
+            if (isR) row.innerHTML += `<td colspan="5" class="p-4 text-xs italic">☕ RECREO 🥐</td>`;
+            else {
+                for(let i=1; i<=5; i++) {
+                    const id = `cell-${time.replace(/[: ]/g,'')}-${i}`;
+                    row.innerHTML += `<td id="${id}" contenteditable="true" onblur="saveCell('${id}')" class="p-4 editable-cell border-r dark:border-slate-700 font-bold">${scheduleData[id] || ""}</td>`;
+                }
+            }
+            body.appendChild(row);
+        });
+    }
+
+    function saveCell(id) { scheduleData[id] = document.getElementById(id).innerText; localStorage.setItem('saio_schedule', JSON.stringify(scheduleData)); }
+    function setView(v) { ['calendar', 'schedule', 'dashboard'].forEach(x => document.getElementById(x + 'View').classList.add('hidden')); document.getElementById(v + 'View').classList.remove('hidden'); if(v==='dashboard') initChart(); }
+    function updateStats() { document.getElementById('statTasks').innerText = events.length; const up = events.filter(e => new Date(e.date) >= new Date()).sort((a,b) => new Date(a.date) - new Date(b.date)); document.getElementById('nextExam').innerText = up.length > 0 ? up[0].title : "Ninguno"; }
+    function toggleDarkMode() { isDarkMode = !isDarkMode; document.body.classList.toggle('dark', isDarkMode); localStorage.setItem('saio_dark', isDarkMode); }
+    document.getElementById('eventForm').onsubmit = (e) => { e.preventDefault(); events.push({ id: Date.now().toString(), title: document.getElementById('eventTitle').value, date: document.getElementById('eventDate').value, type: document.getElementById('eventType').value }); localStorage.setItem('saio_events', JSON.stringify(events)); closeModal(); renderCalendar(); };
+    function changeMonth(s) { currentDate.setMonth(currentDate.getMonth() + s); renderCalendar(); }
+    function openModal() { document.getElementById('modal').classList.remove('hidden'); }
+    function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+
+    window.onload = () => {
+        lucide.createIcons(); if (isDarkMode) document.body.class<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAIO - Agenda Ultra Pro EPO 89 🚀</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        :root { --primary: #4A90E2; --bg-dark: #0f172a; --card-dark: #1e293b; }
+        .dark { background-color: var(--bg-dark); color: white; }
+        .dark .card { background-color: var(--card-dark); border-color: #334155; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background-color: #e2e8f0; }
+        .dark .calendar-grid { background-color: #334155; }
+        .day-cell { min-height: 100px; padding: 6px; background-color: white; transition: all 0.2s; position: relative; border: 0.5px solid #f1f5f9; }
+        .dark .day-cell { background-color: var(--card-dark); border-color: #334155; }
+        .today { border: 2px solid var(--primary) !important; background-color: #eff6ff !important; }
+        .dark .today { background-color: #1e3a8a !important; }
+        .sep-holiday { background-color: #fee2e2 !important; color: #991b1b; }
+        .dark .sep-holiday { background-color: #7f1d1d !important; color: #fecaca; }
+        .vacation { background-color: #f0fdf4 !important; color: #166534; }
+        .dark .vacation { background-color: #064e3b !important; color: #d1fae5; }
+        .school-day::after { content: '📚'; position: absolute; top: 4px; right: 4px; font-size: 10px; opacity: 0.3; }
+        .editable-cell:focus { background: #e0f2fe; outline: none; border: 2px solid #3b82f6; border-radius: 4px; }
+        .dark .editable-cell:focus { background: #0c4a6e; }
+        .recreo-row { background-color: #fefce8 !important; font-weight: bold; color: #854d0e; }
+        .dark .recreo-row { background-color: #422006 !important; color: #fef08a; }
+
+        #chat-window { bottom: 80px; right: 20px; width: 320px; transition: all 0.3s ease; transform: translateY(20px); opacity: 0; pointer-events: none; }
+        #chat-window.active { transform: translateY(0); opacity: 1; pointer-events: auto; }
+    </style>
+</head>
+<body class="transition-colors duration-300 font-sans">
+
+<div id="app" class="flex h-screen overflow-hidden">
+    <aside class="w-64 card border-r p-4 flex flex-col hidden md:flex shadow-lg bg-white dark:bg-slate-800">
+        <div class="flex items-center gap-2 mb-8">
+            <div class="p-2 bg-blue-600 rounded-lg text-white shadow-lg"><i data-lucide="sparkles"></i></div>
+            <h1 class="text-xl font-black tracking-tighter text-blue-600 dark:text-blue-400">SAIO PRO</h1>
+        </div>
+        <nav class="space-y-2 flex-1">
+            <button onclick="setView('calendar')" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-700 transition font-bold text-sm"><i data-lucide="calendar"></i> Mi Agenda</button>
+            <button onclick="setView('schedule')" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-700 transition font-bold text-sm"><i data-lucide="clock"></i> Mi Horario</button>
+            <button onclick="setView('dashboard')" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-700 transition font-bold text-sm"><i data-lucide="bar-chart-3"></i> Estadísticas</button>
+        </nav>
+        <div class="mt-auto space-y-4">
+            <div id="liveClock" class="text-xs font-mono text-center p-2 bg-gray-100 dark:bg-slate-900 rounded-lg opacity-80">00:00:00</div>
+            <button onclick="toggleDarkMode()" class="w-full flex items-center justify-center gap-2 p-2 rounded-xl border dark:border-slate-600 hover:bg-gray-50 transition">
+                <i data-lucide="moon" class="w-4 h-4" id="themeIcon"></i> <span class="text-xs font-bold">Modo Oscuro</span>
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50 dark:bg-slate-900/50">
+        <header class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
+            <div>
+                <h2 id="currentViewTitle" class="text-3xl font-black text-gray-800 dark:text-white">Calendario Escolar 🏫</h2>
+                <p id="dateSubtitle" class="text-blue-500 font-bold text-sm uppercase tracking-widest">Cargando...</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <div class="relative flex-1 md:w-80">
+                    <input type="text" id="dateSearch" placeholder="Ej: 02 enero 2026 🔍" 
+                           class="w-full pl-10 pr-4 py-2 border-2 rounded-2xl dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:border-blue-500 transition shadow-sm text-sm">
+                    <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"></i>
+                    <button onclick="handleSearch()" class="absolute right-2 top-1.5 bg-blue-100 text-blue-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-blue-200">Ir</button>
+                </div>
+                <button onclick="openModal()" class="bg-blue-600 text-white px-6 py-2 rounded-2xl flex items-center gap-2 hover:bg-blue-700 shadow-blue-500/20 shadow-lg font-bold transition">
+                    <i data-lucide="plus-circle" class="w-5 h-5"></i> Añadir
+                </button>
+            </div>
+        </header>
+
+        <div id="calendarView" class="space-y-4">
+            <div class="flex bg-white dark:bg-slate-800 p-1 w-fit rounded-xl border shadow-sm mb-2">
+                <button onclick="changeMonth(-1)" class="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg">◀️</button>
+                <button onclick="changeMonth(1)" class="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg">▶️</button>
+            </div>
+            <div id="calendarGrid" class="calendar-grid rounded-3xl border-2 dark:border-slate-700 overflow-hidden shadow-2xl"></div>
+        </div>
+
+        <div id="scheduleView" class="hidden">
+            <div class="card border-2 rounded-3xl bg-white dark:bg-slate-800 overflow-hidden shadow-2xl overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-blue-600 text-white border-b-2 border-blue-700 text-center">
+                            <th class="p-4 border-r border-blue-700">HORA</th>
+                            <th class="p-4">LUN</th><th class="p-4">MAR</th><th class="p-4">MIÉ</th><th class="p-4">JUE</th><th class="p-4">VIE</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scheduleBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="dashboardView" class="hidden space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="card p-8 border-2 rounded-3xl bg-white dark:bg-slate-800 shadow-xl text-center">
+                    <h3 class="text-gray-400 text-xs font-black mb-4 uppercase">Tareas</h3>
+                    <p id="statTasks" class="text-6xl font-black text-blue-600">0</p>
+                </div>
+                <div class="card p-8 border-2 rounded-3xl bg-white dark:bg-slate-800 shadow-xl text-center">
+                    <h3 class="text-gray-400 text-xs font-black mb-4 uppercase">Clases/Mes</h3>
+                    <p id="statSchoolDays" class="text-6xl font-black text-green-500">0</p>
+                </div>
+                <div class="card p-8 border-2 rounded-3xl bg-white dark:bg-slate-800 shadow-xl text-center">
+                    <h3 class="text-gray-400 text-xs font-black mb-4 uppercase">Próximo</h3>
+                    <p id="nextExam" class="text-sm font-black text-red-500 mt-2">Ninguno</p>
+                </div>
+            </div>
+            <div class="card p-6 border-2 rounded-3xl bg-white dark:bg-slate-800 shadow-xl h-80">
+                <canvas id="productivityChart"></canvas>
+            </div>
+        </div>
+    </main>
+</div>
+
+<button onclick="toggleChat()" class="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition z-50">
+    <i data-lucide="bot"></i>
+</button>
+
+<div id="chat-window" class="fixed card border-2 bg-white dark:bg-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden z-50 h-96">
+    <div class="bg-blue-600 p-4 text-white font-bold flex justify-between items-center text-sm">
+        <span>🤖 Asistente SAIO</span>
+        <button onclick="toggleChat()"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+    <div id="chat-messages" class="flex-1 p-4 overflow-y-auto text-xs space-y-3">
+        <div class="bg-blue-50 dark:bg-slate-700 p-3 rounded-2xl rounded-tl-none text-gray-800 dark:text-white">
+            ¡Hola 'Zenith_Admin'! Pregúntame sobre tus clases o pídeme: "Busca en internet [fecha]".
+        </div>
+    </div>
+    <div class="p-3 border-t dark:border-slate-700">
+        <input type="text" id="chat-input" placeholder="Pregunta algo sobre el calendario..." class="w-full p-2 text-xs bg-gray-100 dark:bg-slate-700 rounded-xl outline-none border focus:border-blue-500 text-gray-800 dark:text-white">
+    </div>
+</div>
+
+<div id="modal" class="fixed inset-0 bg-slate-900/80 hidden flex items-center justify-center z-[60] backdrop-blur-md p-4">
+    <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border-2 border-blue-500/20">
+        <h3 class="text-2xl font-black mb-6 italic text-gray-800 dark:text-white">Añadir Actividad ✨</h3>
+        <form id="eventForm" class="space-y-4">
+            <input type="text" id="eventTitle" placeholder="¿Qué harás?" class="w-full p-4 bg-gray-50 dark:bg-slate-700 border-2 rounded-2xl outline-none focus:border-blue-500 transition text-gray-800 dark:text-white" required>
+            <div class="grid grid-cols-2 gap-4">
+                <input type="date" id="eventDate" class="w-full p-4 bg-gray-50 dark:bg-slate-700 border-2 rounded-2xl outline-none text-gray-800 dark:text-white" required>
+                <select id="eventType" class="w-full p-4 bg-gray-50 dark:bg-slate-700 border-2 rounded-2xl outline-none font-bold text-gray-800 dark:text-white">
+                    <option value="task">📝 Tarea</option>
+                    <option value="exam">🔥 Examen</option>
+                    <option value="important">🚨 Importante</option>
+                    <option value="activity">🏀 Actividad</option>
+                </select>
+            </div>
+            <div class="flex justify-end gap-3 pt-4">
+                <button type="button" onclick="closeModal()" class="text-gray-400 font-bold px-4 hover:text-gray-600">Cerrar</button>
+                <button type="submit" class="bg-blue-600 text-white px-8 py-3 rounded-2xl font-black shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition">Guardar 🚀</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let currentDate = new Date();
+    let events = JSON.parse(localStorage.getItem('saio_events')) || [];
+    let scheduleData = JSON.parse(localStorage.getItem('saio_schedule')) || {};
+    let isDarkMode = localStorage.getItem('saio_dark') === 'true';
+    const monthNames = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+    // --- LÓGICA DE LA IA ---
+    function processAIQuery(query) {
+        const q = query.toLowerCase();
+        let response = "No entiendo esa pregunta, intenta algo como: '¿Qué hace esta app?' o 'Busca en internet 16 de septiembre'.";
+
+        if (q.includes("internet") || q.includes("búscalo") || q.includes("investiga")) {
+            const searchTerms = q.replace("internet", "").replace("búscalo en", "").replace("investiga", "").trim();
+            window.open(`https://www.google.com/search?q=${encodeURIComponent(searchTerms)}`, '_blank');
+            return `¡Claro! He abierto una búsqueda en Google sobre: "${searchTerms}" 🌐`;
+        }
+
+        if (q.includes("qué hace") || q.includes("para qué sirve") || q.includes("ayuda")) {
+            return "Este es tu sistema SAIO PRO. Puedes guardar tareas, ver tu horario de la EPO 89 y checar estadísticas de productividad. ¡Todo se guarda automáticamente!";
+        }
+
+        if (q.includes("fecha") || q.match(/\d+/)) {
+            const foundEvents = events.filter(e => q.includes(e.title.toLowerCase()) || q.includes(e.date));
+            if (foundEvents.length > 0) {
+                return `Encontré esto en tu calendario: ${foundEvents.map(e => e.title + " el " + e.date).join(", ")}.`;
+            } else {
+                return "No tienes eventos anotados para esa fecha, pero puedes pedírmelo así: 'Busca en internet qué pasó el [fecha]'.";
+            }
+        }
+        return response;
+    }
+
+    document.getElementById('chat-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            const val = this.value; if(!val) return;
+            addChatMessage('user', val);
+            this.value = '';
+            setTimeout(() => {
+                const reply = processAIQuery(val);
+                addChatMessage('bot', reply);
+            }, 600);
+        }
+    });
+
+    function addChatMessage(sender, text) {
+        const box = document.getElementById('chat-messages');
+        const d = document.createElement('div');
+        d.className = sender === 'user' ? 'bg-blue-600 text-white p-2 rounded-xl self-end ml-auto max-w-[80%]' : 'bg-gray-100 dark:bg-slate-700 p-2 rounded-xl mr-auto max-w-[80%] text-gray-800 dark:text-white';
+        d.innerText = text;
+        box.appendChild(d);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function toggleChat() { document.getElementById('chat-window').classList.toggle('active'); }
+
+    // --- FUNCIONES DEL CALENDARIO (IGUALES) ---
+    function handleSearch() {
+        const query = document.getElementById('dateSearch').value.toLowerCase().trim();
+        const parts = query.split(' ');
+        if (parts.length === 3) {
+            const d = parseInt(parts[0], 10);
+            const m = monthNames.indexOf(parts[1]);
+            const y = parseInt(parts[2], 10);
+            if (!isNaN(d) && m !== -1 && !isNaN(y)) { currentDate = new Date(y, m, d); renderCalendar(); }
+        }
+    }
+
+    function getHolidays(y) {
+        return { [`${y}-01-01`]: "🥳 Año Nuevo", [`${y}-05-01`]: "🛠️ Día Trabajo", [`${y}-09-16`]: "🔔 Independencia", [`${y}-11-20`]: "🐎 Revolución", [`${y}-12-25`]: "🎄 Navidad" };
+    }
+
+    function isVacation(dateStr) {
+        const d = new Date(dateStr); const m = d.getMonth(); const day = d.getDate();
+        if ((m === 11 && day >= 20) || (m === 0 && day <= 8)) return "🎿 Vacaciones";
+        return (m === 6 || m === 7) ? "🏖️ Verano" : null;
+    }
+
+    function renderCalendar() {
+        const grid = document.getElementById('calendarGrid'); grid.innerHTML = '';
+        const y = currentDate.getFullYear(); const m = currentDate.getMonth();
+        const holidays = getHolidays(y);
+        document.getElementById('dateSubtitle').innerText = `${monthNames[m]} ${y}`;
+        ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].forEach(d => {
+            grid.innerHTML += `<div class="bg-gray-50 dark:bg-slate-700/50 p-2 text-center text-[10px] font-black text-blue-400 uppercase">${d}</div>`;
+        });
+        const first = new Date(y, m, 1).getDay(); const total = new Date(y, m + 1, 0).getDate();
+        for (let i = 0; i < first; i++) grid.innerHTML += `<div class="day-cell bg-slate-50 dark:bg-slate-900/10"></div>`;
+        let count = 0;
+        for (let d = 1; d <= total; d++) {
+            const ds = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const holiday = holidays[ds]; const vac = isVacation(ds);
+            const isToday = new Date().toISOString().split('T')[0] === ds;
+            const dw = new Date(y, m, d).getDay(); const isS = dw > 0 && dw < 6 && !holiday && !vac;
+            if (isS) count++;
+            const cell = document.createElement('div');
+            cell.className = `day-cell ${isToday ? 'today' : ''} ${holiday ? 'sep-holiday' : ''} ${vac ? 'vacation' : ''} ${isS ? 'school-day' : ''}`;
+            cell.innerHTML = `<span class="text-xs font-black">${d}</span>`;
+            if (holiday) cell.innerHTML += `<div class="text-[7px] font-black mt-1 uppercase">${holiday}</div>`;
+            events.filter(e => e.date === ds).forEach(e => {
+                const b = document.createElement('div');
+                b.className = `text-[8px] p-1 mt-1 rounded text-white font-bold truncate ${getTypeColor(e.type)}`;
+                b.innerText = e.title; cell.appendChild(b);
+            });
+            grid.appendChild(cell);
+        }
+        document.getElementById('statSchoolDays').innerText = count; updateStats();
+    }
+
+    function getTypeColor(t) {
+        const c = { task: 'bg-blue-500', exam: 'bg-red-500', important: 'bg-orange-500', activity: 'bg-green-500' };
+        return c[t] || 'bg-gray-500';
+    }
+
+    function renderSchedule() {
+        const body = document.getElementById('scheduleBody'); body.innerHTML = '';
+        const slots = ["7:00 - 7:50", "7:50 - 8:40", "8:40 - 9:30", "9:30 - 10:00", "10:00 - 10:50", "10:50 - 11:40", "11:40 - 12:30", "12:30 - 1:20"];
+        slots.forEach(time => {
+            const row = document.createElement('tr'); const isR = time === "9:30 - 10:00";
+            row.className = `border-b dark:border-slate-700 text-center ${isR ? 'recreo-row' : ''}`;
+            row.innerHTML = `<td class="p-4 bg-gray-50 dark:bg-slate-900/50 font-black border-r dark:border-slate-700 text-[10px]">${time}</td>`;
+            if (isR) row.innerHTML += `<td colspan="5" class="p-4 text-xs italic">☕ RECREO 🥐</td>`;
+            else {
+                for(let i=1; i<=5; i++) {
+                    const id = `cell-${time.replace(/[: ]/g,'')}-${i}`;
+                    row.innerHTML += `<td id="${id}" contenteditable="true" onblur="saveCell('${id}')" class="p-4 editable-cell border-r dark:border-slate-700 font-bold">${scheduleData[id] || ""}</td>`;
+                }
+            }
+            body.appendChild(row);
+        });
+    }
+
+    function saveCell(id) { scheduleData[id] = document.getElementById(id).innerText; localStorage.setItem('saio_schedule', JSON.stringify(scheduleData)); }
+    function setView(v) { ['calendar', 'schedule', 'dashboard'].forEach(x => document.getElementById(x + 'View').classList.add('hidden')); document.getElementById(v + 'View').classList.remove('hidden'); if(v==='dashboard') initChart(); }
+    function updateStats() { document.getElementById('statTasks').innerText = events.length; const up = events.filter(e => new Date(e.date) >= new Date()).sort((a,b) => new Date(a.date) - new Date(b.date)); document.getElementById('nextExam').innerText = up.length > 0 ? up[0].title : "Ninguno"; }
+    function toggleDarkMode() { isDarkMode = !isDarkMode; document.body.classList.toggle('dark', isDarkMode); localStorage.setItem('saio_dark', isDarkMode); }
+    document.getElementById('eventForm').onsubmit = (e) => { e.preventDefault(); events.push({ id: Date.now().toString(), title: document.getElementById('eventTitle').value, date: document.getElementById('eventDate').value, type: document.getElementById('eventType').value }); localStorage.setItem('saio_events', JSON.stringify(events)); closeModal(); renderCalendar(); };
+    function changeMonth(s) { currentDate.setMonth(currentDate.getMonth() + s); renderCalendar(); }
+    function openModal() { document.getElementById('modal').classList.remove('hidden'); }
+    function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+
+    window.onload = () => {
+        lucide.createIcons(); if (isDarkMode) document.body.classList.add('dark');
+        renderCalendar(); renderSchedule();
+        setInterval(() => { document.getElementById('liveClock').innerText = new Date().toLocaleTimeString(); }, 1000);
+    };
+
+    let myChart;
+    function initChart() {
+        const ctx = document.getElementById('productivityChart').getContext('2d');
+        if (myChart) myChart.destroy();
+        myChart = new Chart(ctx, { type: 'bar', data: { labels: ['Tareas', 'Exámenes', 'Otros'], datasets: [{ label: 'Actividades', data: [events.filter(e => e.type === 'task').length, events.filter(e => e.type === 'exam').length, events.filter(e => e.type !== 'task' && e.type !== 'exam').length], backgroundColor: ['#3b82f6', '#ef4444', '#f59e0b'], borderRadius: 10 }] }, options: { responsive: true, maintainAspectRatio: false } });
+    }
+</script>
+</body>
+</html>
